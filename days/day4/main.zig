@@ -11,23 +11,23 @@ fn readInputFile(allocator: std.mem.Allocator) ![]const u8 {
     return std.mem.trim(u8, fileContent, "\n ");
 }
 
-fn parseFileContent(allocator: std.mem.Allocator, fileContent: []const u8) !std.ArrayList([]const u8) {
+fn parseFileContent(allocator: std.mem.Allocator, fileContent: []const u8) !std.ArrayList([]u8) {
     var lineIterator = std.mem.splitScalar(u8, fileContent, '\n');
 
-    var lines = try std.ArrayList([]const u8).initCapacity(allocator, NOTE_SIZE);
+    var lines = try std.ArrayList([]u8).initCapacity(allocator, NOTE_SIZE);
 
     while (lineIterator.next()) |line| {
-        lines.appendAssumeCapacity(line);
+        lines.appendAssumeCapacity(try allocator.dupe(u8, line));
     }
 
     return lines;
 }
 
-fn countAdjacent(grid: std.ArrayList([]const u8), x: usize, y: usize, range: usize) u64 {
-    const minX = if (x >= range) x - range else 0;
+fn countAdjacent(grid: std.ArrayList([]u8), x: usize, y: usize, range: usize) u64 {
+    const minX = x -| range;
     const maxX = @as(usize, @min(x + range + 1, grid.items[0].len));
 
-    const minY = if (y >= range) y - range else 0;
+    const minY = y -| range;
     const maxY = @as(usize, @min(y + range + 1, grid.items.len));
 
     var count: u64 = 0;
@@ -44,21 +44,32 @@ fn countAdjacent(grid: std.ArrayList([]const u8), x: usize, y: usize, range: usi
     return count;
 }
 
-fn solvePuzzle(rows: std.ArrayList([]const u8)) u64 {
-    var total: u64 = 0;
+fn removeRolls(rows: std.ArrayList([]u8)) u64 {
+    var removed: u64 = 0;
 
     for (0..rows.items.len) |y| {
         for (0..rows.items[y].len) |x| {
             if (rows.items[y][x] != PAPER_ROLL)
                 continue;
 
-            const wtf = x;
-
-            if (countAdjacent(rows, wtf, y, 1) >= 4)
+            if (countAdjacent(rows, x, y, 1) >= 4)
                 continue;
 
-            total += 1;
+            rows.items[y][x] = '.';
+            removed += 1;
         }
+    }
+
+    return removed;
+}
+
+fn solvePuzzle(rows: std.ArrayList([]u8)) u64 {
+    var count = removeRolls(rows);
+    var total: u64 = count;
+
+    while (count > 0) {
+        count = removeRolls(rows);
+        total += count;
     }
 
     return total;
